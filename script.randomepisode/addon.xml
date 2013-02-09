@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.randomepisode"
+       name="Random Episode Player (Frodo)"
+       version="0.1.0"
+       provider-name="stafio">
+  <requires>
+    <import addon="xbmc.python" version="2.0"/>
+     <import addon="script.module.simplejson" version="2.0.10"/>
+  </requires>
+  <extension point="xbmc.python.library"
+             library="default.py" />
+ <provides>executable</provides>
+  <extension point="xbmc.addon.metadata">
+    <platform>all</platform>
+    <summary lang="en">Random Episode Player</summary>
+    <description lang="en">Plays a random TV show episode from user's library. Can be filtered by show and un-watched.</description>
+  </extension>
+</addon>
