@@ -66,7 +66,7 @@ def getRandomEpisode(filterWatched, filterseries, series):
 
     # if it meets the criteria, let's add the file path to our list
     if meetsCriteria:
-      episodeList.append(episode["file"])
+      episodeList.append(str(item.get('episodeid')))
   # Make a random selection      
   randomEpisode = random.choice(episodeList)
   # return the filepath
@@ -142,10 +142,10 @@ if filterSeries:
     # get the random episdoe...
     randomEpisode = getRandomEpisode(unwatched, True, selectedSeries)
     # ...and play it!
-    xbmc.executebuiltin('PlayMedia(' + randomEpisode + ',0,noresume)')
+    xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method": "Player.Open", "params": { "item": { "episodeid": %d }, "options":{ "resume": false } }, "id": 1 }' % int(randomEpisode))
 else:
   # no genre filter
   # get the random episode...
   randomEpisode = getRandomEpisode(unwatched, False, "")
   # ...and play it
-  xbmc.executebuiltin('PlayMedia(' + randomEpisode + ',0,noresume)')
+  xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method": "Player.Open", "params": { "item": { "episodeid": %d }, "options":{ "resume": false } }, "id": 1 }' % int(randomEpisode))
