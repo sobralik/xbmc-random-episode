@@ -1,7 +1,7 @@
 # XBMC Media Center language file
-# Addon Name: Random Movie
-# Addon id: script.randommovie
-# Addon Provider: elParaguayo
+# Addon Name: Random Episode
+# Addon id: script.randomepisode
+# Addon Provider: stafio
 msgid ""
 msgstr ""
 "Project-Id-Version: XBMC Main\n"
