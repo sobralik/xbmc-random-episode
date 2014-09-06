@@ -50,10 +50,10 @@ except:
 filterSeries = params.get("filterseries", "").lower() == "true"
 
 # The filter by series prompt can be set via the skin...
-skinprompt = params.get("prompt", "").lower() == "true"
+skinprompt = params.get("promptSeries", "").lower() == "true"
 
 # ... or via the script settings
-scriptprompt = _S_("prompt") == "true"
+scriptprompt = _S_("promptSeries") == "true"
 
 # If the skin setting is set to true this overrides the script setting
 promptUser = skinprompt or scriptprompt
