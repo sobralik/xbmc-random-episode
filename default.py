@@ -26,6 +26,7 @@
 
 import sys
 import random
+import re
 
 if sys.version_info >=  (2, 7):
     import json as json
@@ -185,7 +186,7 @@ def selectSeries(filterWatched):
                 mySeries.append(series)
     
     # Sort the list alphabetically, ignoring leading 'The '                
-    mySortedSeries = sorted(mySeries, key=lambda s: s.lower().replace('the ', '', 1))
+    mySortedSeries = sorted(mySeries, key=lambda s: re.compile('^The ').sub('', s))
 
     # Prompt user to select series
     selectSeries = xbmcgui.Dialog().select(localise(32024), mySortedSeries)
