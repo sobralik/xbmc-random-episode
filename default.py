@@ -186,7 +186,7 @@ def selectSeries(filterWatched):
                 mySeries.append(series)
     
     # Sort the list alphabetically, ignoring leading 'The '                
-    mySortedSeries = sorted(mySeries, key=lambda s: re.compile('^The ').sub('', s))
+    mySortedSeries = sorted(mySeries, key=lambda s: re.compile('^the ', re.IGNORECASE).sub('', s))
 
     # Prompt user to select series
     selectSeries = xbmcgui.Dialog().select(localise(32024), mySortedSeries)
