@@ -1,151 +1,268 @@
-# Random episode selecter
-# Massive thanks to the developers of the script.randommovie addon, which this is entirely based off of. 
-# From the developer of script.randommovie goes massive thanks to the developers of the script.randommitems addon, 
-# without whom this would not have been possible. 
-#
-# Author - stafio
-# Website - https://github.com/elParaguayo/
-# Version - 0.1
-# Compatibility - pre-Eden
-#
+'''
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+'''
+
+'''
+    Random Episode script
+    by stafio
+
+    Plays a random TV Show episode from user's video library.
+    
+    Based off of Random Movie script by elParaguayo
+
+    Version: 0.2.0
+'''
+
+import sys
+import random
+
+if sys.version_info >=  (2, 7):
+    import json as json
+else:
+    import simplejson as json
 
 import xbmc
 import xbmcgui
-from urllib import quote_plus, unquote_plus
-import re
-import sys
-import os
-import random
-import simplejson as json
+import xbmcaddon
+
+_A_ = xbmcaddon.Addon()
+_S_ = _A_.getSetting
 
 # let's parse arguments before we start
 try:
-  # parse sys.argv for params
-  params = dict( arg.split( "=" ) for arg in sys.argv[ 1 ].split( "&" ) )
+    # parse sys.argv for params
+    params = dict( arg.split( "=" ) for arg in sys.argv[ 1 ].split( "&" ) )
 except:
-  # no params passed
-  params = {}
+    # no params passed
+    params = {}
 # set our preferences
-filterSeries = params.get( "filterseries", "" ) == "True"
-promptUser = params.get( "prompt" , "" ) == "True"
+filterSeries = params.get("filterseries", "").lower() == "true"
+
+# The filter by series prompt can be set via the skin...
+skinprompt = params.get("prompt", "").lower() == "true"
+
+# ... or via the script settings
+scriptprompt = _S_("prompt") == "true"
+
+# If the skin setting is set to true this overrides the script setting
+promptUser = skinprompt or scriptprompt
+
+def localise(id):
+    '''Gets localised string.
+
+    Shamelessly copied from service.xbmc.versioncheck
+    '''
+    string = _A_.getLocalizedString(id).encode( 'utf-8', 'ignore' )
+    return string
+
+def getEpisodeLibrary():
+    '''Gets the user's full video library.
+
+    Returns dictionary object containing episodes.'''
+
+    # Build our JSON query
+    jsondict = {"jsonrpc": "2.0",
+                "method": "VideoLibrary.GetEpisodes",
+                "params": {"properties": ["showtitle", "playcount", "file"]},
+                "id": 1}
+
+    # Submit our JSON request and get the response
+    episodestring = unicode(xbmc.executeJSONRPC(json.dumps(jsondict)), 
+                          errors='ignore')
+    
+    # Convert the response string into a python dictionary
+    episodes = json.loads(episodestring)
 
 
-def getAllEpisodes():
-  # get the raw JSON output
-  try:
-    episodesstring = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": { "fields": ["showtitle", "file", "playcount"], "sort": { "method": "random" } }, "id": 1}')    
-    episodesstring = unicode(episodesstring, 'utf-8', errors='ignore')
-    episodes = json.loads(episodesstring)
-    # older "pre-Eden" versions accepted "fields" parameter but this was changed to "properties" in later versions.
-    # the next line will throw an error if we're running newer version
-    testError = episodes["result"]
-  except:
-    episodesstring = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "VideoLibrary.GetEpisodes", "params": { "properties": ["showtitle", "file", "playcount"], "sort": { "method": "random" } }, "id": 1}')
-    episodesstring = unicode(episodesstring, 'utf-8', errors='ignore')
-    episodes = json.loads(episodesstring)
-  # and return it
-  return episodes
+    # Return the "episodes" part of the response, or None if no episodes are found
+    return episodes["result"].get("episodes", None)
 
-def getRandomEpisode(filterWatched, filterseries, series):
-  # set up empty list for movies that meet our criteria
-  episodeList = []
-  # loop through all movies
-  for episode in episodesJSON["result"]["episodes"]:
-    # reset the criteria flag
-    meetsCriteria = False
-    # check if the episode meets the criteria
-    # Test #1: Does the series match our selection (also check whether the playcount criteria are satisfied)
-    if ( filterseries and series == episode["showtitle"] ) and (( filterWatched and episode["playcount"] == 0 ) or not filterWatched):
-      meetsCriteria = True
-    # Test #2: Is the playcount 0 for unwatched episodes (when not filtering by series)
-    if ( filterWatched and episode["playcount"] == 0 and not filterseries ):
-      meetsCriteria = True
-    # Test #3: If we're not filtering series or unwatched movies, then it's added to the list!!
-    if ( not filterWatched and not filterseries ):
-      meetsCriteria = True
+def getRandomEpisode(filterWatched, filterBySeries, series=None):
+    '''Takes the user's video library, filters it by the criteria
+       requested by the user and then selects a random episode from the filtered 
+       list.
 
-    # if it meets the criteria, let's add the file path to our list
-    if meetsCriteria:
-      episodeList.append(str(episode.get('episodeid')))
-  # Make a random selection      
-  randomEpisode = random.choice(episodeList)
-  # return the filepath
-  return randomEpisode
-  
+       Returns the filepath of the random episode.
+    '''
+
+    # set up empty list for episodes that meet our criteria
+    episodeList = []
+
+    # loop through all episodes
+    # episodesJSON is global variable, it's not being modified
+    for episode in episodesJSON:
+
+        # reset the criteria flag
+        meetsCriteria = False
+
+        # Does the show title match the selected series?
+        seriesmatch = series == episode["showtitle"]
+        
+        # Is the episode currently unwatched?
+        isUnwatched = episode["playcount"] == 0 
+
+        # Test the episode against the criteria
+
+        # If we are filtering both by series and watched status...
+        if filterBySeries and filterWatched:
+
+            # ...we need both of these to be True
+            meetsCriteria = seriesmatch and isUnwatched
+
+        # If we're just filtering by series...
+        elif filterBySeries:
+
+            # ... only this needs to be True
+            meetsCriteria = seriesmatch
+
+        # If we're fitering by watched status...
+        elif filterWatched:
+
+            # ... only this one needs to be True
+            meetsCriteria = isUnwatched
+
+        # And if we're not filtering by either...
+        else:
+
+            # ... we can add it to our list!
+            meetsCriteria = True
+
+        # If the film passes the tests... 
+        if meetsCriteria:
+
+            # ... let's add the filepath to our list.
+            episodeList.append(episode["file"])
+    
+    # return a random episode filepath
+    try:
+        return random.choice(episodeList)
+
+    # Will be empty if no results
+    except IndexError:
+
+        return None
+    
 def selectSeries(filterWatched):
-  success = False
-  selectedSeries = ""
-  mySeries = []
-  
-  for episode in episodesJSON["result"]["episodes"]:
-    # Let's get the episode series names
-    # If we're only looking at unwatched episodes then restrict list to those movies
-    if ( filterWatched and episode["playcount"] == 0 ) or not filterWatched:
-      series = episode["showtitle"]
-      # check if the series is a duplicate
-      if not series in mySeries:
-        # if not, add it to our list
-        mySeries.append(series)
-  # sort the list alphabetically
-  mySortedSeries = sorted(mySeries)
-  # prompt user to select series
-  selectSeries = xbmcgui.Dialog().select("Select series:", mySortedSeries)
-  # check whether user cancelled selection
-  if not selectSeries == -1:
-    # get the user's chosen series
-    selectedSeries = mySortedSeries[selectSeries]
-    success = True
-  else:
-    success = False
-  # return the series and whether the choice was successfull
-  return success, selectedSeries
-  
-def getUnwatched():
-  # default is to select from all episodes
-  unwatched = False
-  # ask user whether they want to restrict selection to unwatched episodes
-  a = xbmcgui.Dialog().yesno("Watched shows", "Restrict selection to unwatched shows only?")
-  # deal with the output
-  if a == 1: 
-    # set restriction
-    unwatched = True
-  return unwatched
-  
-def askSeries():
-  # default is to select from all series
-  selectSeries = False
-  # ask user whether they want to select a series
-  a = xbmcgui.Dialog().yesno("Select series", "Do you want to select a series to watch?")
-  # deal with the output
-  if a == 1: 
-    # set filter
-    selectSeries = True
-  return selectSeries  
+    '''Displays a dialog of the show titles of all TV Show episodes in 
+       the user's library and asks the user to select one.
 
-# get the full list of movies from the user's library
-episodesJSON = getAllEpisodes()
-  
-# ask user if they want to only play unwatched movies  
-unwatched = getUnwatched()  
+       Parameters:
+
+       filterWatched: restrict results to specific series of unwatched episodes.
+
+       Returns:
+       selectedSeries: string containing selected series name or None if no choice made.
+    '''
+    # Empty list for holding series
+    mySeries = []
+    selectedSeries = None
+    
+    # Loop through our episodes library
+    for episode in episodesJSON:
+
+        # Let's get the episode show titles
+        # If we're only looking at unwatched episodes then restrict list to 
+        # those episodes
+        if (filterWatched and episode["playcount"] == 0) or not filterWatched:
+            
+            series = episode["showtitle"]
+
+            # Check if the series is a duplicate
+            if not series in mySeries:
+
+                # If not, add it to our list
+                mySeries.append(series)
+    
+    # Sort the list alphabetically, ignoring leading 'The '                
+    mySortedSeries = sorted(mySeries, key=lambda s: s.lower().replace('the ', '', 1))
+
+    # Prompt user to select series
+    selectSeries = xbmcgui.Dialog().select(localise(32024), mySortedSeries)
+    
+    # Check whether user cancelled selection
+    if not selectSeries == -1:
+        # get the user's chosen series
+        selectedSeries = mySortedSeries[selectSeries]
+        
+    # Return the series (or None if no choice)
+    return selectedSeries
+    
+    
+def getUserPreference(title, message):
+    '''Asks the user whether they want to restrict results.
+
+       Returns:
+       True:    Script should restrict films
+       False:   Script can pick any film
+    '''
+
+    # Ask user whether they want to restrict selection
+    a = xbmcgui.Dialog().yesno(title, 
+                               message)
+    
+    # Deal with the output
+    if a == 1: 
+        
+        # User wants restriction
+        return True
+
+    else:
+
+        # No restriction needed
+        return False
+    
+# get the full list of episodes from the user's library
+episodesJSON = getEpisodeLibrary()
+    
+# ask user if they want to only play unwatched episodes    
+unwatched = getUserPreference(localise(32021), localise(32022))  
 
 # is skin configured to use one entry?
 if promptUser and not filterSeries:
-  # if so, we need to ask whether they want to select series
-  filterSeries = askSeries()
 
-# did user ask to select genre?
+    # if so, we need to ask whether they want to select series
+    filterSeries = getUserPreference(localise(32023), localise(32024))  
+
+# did user ask to select series?
 if filterSeries:
-  # bring up genre dialog
-  success, selectedSeries = selectSeries(unwatched)
-  # if not aborted
-  if success:
-    # get the random episdoe...
-    randomEpisode = getRandomEpisode(unwatched, True, selectedSeries)
-    # ...and play it!
-    xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method": "Player.Open", "params": { "item": { "episodeid": %d }, "options":{ "resume": false } }, "id": 1 }' % int(randomEpisode))
+
+    # bring up series dialog
+    selectedSeries = selectSeries(unwatched)
+
+    # if not aborted
+    if selectedSeries:
+
+        # get the random episode...
+        randomEpisode = getRandomEpisode(unwatched, True, selectedSeries)
+
+    else:
+
+        # User cancelled so there's no episode to play
+        randomEpisode = None
+
 else:
-  # no series filter
-  # get the random episode...
-  randomEpisode = getRandomEpisode(unwatched, False, "")
-  # ...and play it
-  xbmc.executeJSONRPC('{ "jsonrpc": "2.0", "method": "Player.Open", "params": { "item": { "episodeid": %d }, "options":{ "resume": false } }, "id": 1 }' % int(randomEpisode))
+    # no series filter
+    # get the random episode...
+    randomEpisode = getRandomEpisode(unwatched, False)
+
+if randomEpisode:
+
+   # Play the episode 
+    xbmc.executebuiltin('PlayMedia(' + randomEpisode + ',0,noresume)')
+
+else:
+
+    # No results found, best let the user know
+    xbmc.executebuiltin('Notification(%s,%s,2000)' % (localise(32025),
+                                                      localise(32026)))
