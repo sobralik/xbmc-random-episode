@@ -186,7 +186,7 @@ def selectSeries(filterWatched):
     mySortedSeries = sorted(mySeries, key=lambda s: re.compile('^the ', re.IGNORECASE).sub('', s))
 
     # Prompt user to select series
-    selectSeries = xbmcgui.Dialog().select(localise(32024), mySortedSeries)
+    selectSeries = xbmcgui.Dialog().select(localise(32023), mySortedSeries)
     
     # Check whether user cancelled selection
     if not selectSeries == -1:

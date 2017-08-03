@@ -39,7 +39,7 @@ msgid "Restrict selection to unwatched shows only?"
 msgstr ""
 
 msgctxt "#32023"
-msgid "Select series"
+msgid "Select a series"
 msgstr ""
 
 msgctxt "#32024"
