@@ -2,12 +2,11 @@
 
 <addon id="script.randomepisode"
        name="Random Episode Player"
-       version="0.2.0"
+       version="0.3.0"
        provider-name="stafio">
   
   <requires>
-    <import addon="xbmc.python" version="2.0"/>
-    <import addon="script.module.simplejson" version="2.0.10"/>
+    <import addon="xbmc.python" version="2.7.10"/>
   </requires>
   
   <extension point="xbmc.python.script" library="default.py" />

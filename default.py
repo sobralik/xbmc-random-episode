@@ -28,10 +28,7 @@ import sys
 import random
 import re
 
-if sys.version_info >=  (2, 7):
-    import json as json
-else:
-    import simplejson as json
+import json as json
 
 import xbmc
 import xbmcgui
